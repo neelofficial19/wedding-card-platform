@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, Plus, LogOut, Edit, Eye, Trash2, Loader2 } from "lucide-react";
+import { Heart, Plus, LogOut, Edit, Eye, Trash2, Loader2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -84,6 +84,40 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleClone = async (id: string) => {
+    try {
+      setLoading(true);
+      const { data: original, error: fetchError } = await supabase
+        .from("invitations")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (fetchError || !original) throw fetchError;
+
+      const newSlug = `${original.slug}-copy-${Date.now()}`;
+      const { id: _id, created_at, updated_at, slug, is_published, ...cloneData } = original;
+
+      const { data: cloned, error: insertError } = await supabase
+        .from("invitations")
+        .insert({
+          ...cloneData,
+          slug: newSlug,
+          is_published: false,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      toast.success("Invitation cloned! Redirecting to edit...");
+      navigate(`/admin/invitation/${cloned.id}`);
+    } catch (error: any) {
+      toast.error("Failed to clone invitation");
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -161,7 +195,7 @@ const AdminDashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button
                       size="sm"
                       variant="outline"
@@ -179,6 +213,14 @@ const AdminDashboard = () => {
                     >
                       <Edit className="w-4 h-4 mr-1" />
                       Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleClone(invitation.id)}
+                      title="Clone this invitation"
+                    >
+                      <Copy className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
